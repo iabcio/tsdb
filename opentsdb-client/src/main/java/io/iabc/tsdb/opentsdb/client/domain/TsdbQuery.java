@@ -7,8 +7,11 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -125,6 +128,7 @@ public class TsdbQuery implements Serializable {
         private String metric;
         private Boolean rate;
         private String downsample;
+        private Map<String, String> tags = new HashMap<>();
         private List<Filter> filters = new ArrayList<Filter>();
 
         public String jsonProtocol() {
@@ -141,6 +145,19 @@ public class TsdbQuery implements Serializable {
             }
             if (!StringUtils.isEmpty(this.downsample)) {
                 sb.append("\"downsample\":\"").append(this.downsample).append("\",");
+            }
+
+            if (this.tags.size() > 0) {
+                sb.append("\"tags\":{");
+                LongAdder couter = new LongAdder();
+                this.tags.forEach((key, value) -> {
+                    sb.append("\"").append(key).append("\":").append("\"").append(value).append("\"");
+                    couter.increment();
+                    if (couter.intValue() < this.tags.size()) {
+                        sb.append(",");
+                    }
+                });
+                sb.append("},");
             }
 
             sb.append("\"filters\":[");
@@ -213,6 +230,7 @@ public class TsdbQuery implements Serializable {
             private String metric;
             private Boolean rate;
             private String downsample;
+            private Map<String, String> tags = new HashMap<>();
             private List<Filter> filters = new ArrayList<Filter>();
 
             QueryBuilder(String metric) {
@@ -237,6 +255,40 @@ public class TsdbQuery implements Serializable {
                 return this;
             }
 
+            public QueryBuilder tags(Map<String, String> tags) {
+                this.tags.putAll(tags);
+                return this;
+            }
+
+            public QueryBuilder tag(String key, String value) {
+                this.tags.putIfAbsent(key, value);
+                return this;
+            }
+
+            public QueryBuilder iliteralOrTag(String key, String value) {
+                this.tag(key, "literal_or(" + value + ")");
+                return this;
+            }
+
+            public QueryBuilder wildcardTag(String key, String value) {
+                this.tag(key, "wildcard(" + value + ")");
+                return this;
+            }
+
+            public QueryBuilder groupBy(String groupBy) {
+                this.wildcardTag(groupBy, "*");
+                return this;
+            }
+
+            public QueryBuilder groupBys(Collection<String> groupBys) {
+                Preconditions.checkArgument(groupBys != null, "groupBys can't be null");
+
+                for (String groupBy : groupBys) {
+                    this.wildcardTag(groupBy, "*");
+                }
+                return this;
+            }
+
             public QueryBuilder filter(Filter filter) {
                 this.filters.add(filter);
                 return this;
@@ -254,6 +306,7 @@ public class TsdbQuery implements Serializable {
                 query.aggregator = this.aggregator;
                 query.rate = this.rate;
                 query.filters = this.filters;
+                query.tags = this.tags;
                 query.downsample = this.downsample;
 
                 return query;
