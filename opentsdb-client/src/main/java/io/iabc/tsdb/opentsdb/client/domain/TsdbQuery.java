@@ -147,19 +147,6 @@ public class TsdbQuery implements Serializable {
                 sb.append("\"downsample\":\"").append(this.downsample).append("\",");
             }
 
-            if (this.tags.size() > 0) {
-                sb.append("\"tags\":{");
-                LongAdder couter = new LongAdder();
-                this.tags.forEach((key, value) -> {
-                    sb.append("\"").append(key).append("\":").append("\"").append(value).append("\"");
-                    couter.increment();
-                    if (couter.intValue() < this.tags.size()) {
-                        sb.append(",");
-                    }
-                });
-                sb.append("},");
-            }
-
             sb.append("\"filters\":[");
             for (Filter filter : this.filters) {
                 sb.append(filter.jsonProtocol()).append(",");
@@ -169,6 +156,19 @@ public class TsdbQuery implements Serializable {
                 sb.deleteCharAt(sb.length() - 1);
             }
             sb.append("]");
+
+            if (this.tags.size() > 0) {
+                sb.append(",\"tags\":{");
+                LongAdder couter = new LongAdder();
+                this.tags.forEach((key, value) -> {
+                    sb.append("\"").append(key).append("\":").append("\"").append(value).append("\"");
+                    couter.increment();
+                    if (couter.intValue() < this.tags.size()) {
+                        sb.append(",");
+                    }
+                });
+                sb.append("}");
+            }
 
             sb.append("}");
 
@@ -341,6 +341,14 @@ public class TsdbQuery implements Serializable {
 
         public static FilterBuilder iliteralOr(String tagk, String... filters) {
             return new FilterBuilder("iliteral_or", tagk, filters);
+        }
+
+        public static FilterBuilder wildcard(String tagk, String... filters) {
+            return new FilterBuilder("wildcard", tagk, filters);
+        }
+
+        public static FilterBuilder regexp(String tagk, String... filters) {
+            return new FilterBuilder("regexp", tagk, filters);
         }
 
         public static class FilterBuilder {
